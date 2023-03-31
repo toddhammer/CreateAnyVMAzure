@@ -91,13 +91,13 @@ osDiskSize=128
 vmSize=Standard_DS2
 
 # Create a resource group
-az group create --name $resourceGroup --location eastus
+az group create --name $resourceGroup --location $location
 
 # Create a public IP address with static allocation method
 az network public-ip create \
     --resource-group $resourceGroup \
     --name ${vmName}-public-ip \
-    --location eastus \
+    --location $location \
     --sku Standard \
     --allocation-method Static
 
@@ -112,7 +112,7 @@ echo ""
 az vm create \
     --resource-group $resourceGroup \
     --name $vmName \
-    --location eastus \
+    --location $location \
     --size $vmSize \
     --image $imagePublisher:$imageOffer:$imageSKU:$version \
     --admin-username $adminUser \
