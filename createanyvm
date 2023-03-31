@@ -1,0 +1,83 @@
+#!/bin/bash
+
+# Check if the Azure CLI is installed
+if ! command -v az &> /dev/null; then
+    echo "Azure CLI is not installed. Please install it before running this script."
+    exit 1
+fi
+
+# Prompt the user for input
+read -p "Enter the resource group name: " resourceGroup
+read -p "Enter the location: " location
+read -p "Enter the virtual machine name: " vmName
+read -p "Enter the virtual machine admin username: " adminUser
+prompt="Enter the virtual machine admin password: "
+while IFS= read -p "$prompt" -r -s -n 1 char
+do
+  if [[ $char == $'\0' ]]
+  then
+    break
+  fi
+    prompt='*'
+    adminPassword+="$char"
+done
+echo ""
+read -p "Enter the image publisher: " imagePublisher
+echo "Listing all available offers from publisher $imagePublisher"
+az vm image list-offers --location $location --publisher $imagePublisher --output table
+
+read -p "Enter the image offer: " imageOffer
+echo "Listing all available SKUs for $imageOffer image offer from $imagePublisher publisher:"
+
+az vm image list-skus \
+    --offer $imageOffer \
+    --publisher $imagePublisher \
+    --location $location \
+    --output table
+
+read -p "Enter the name of the SKU you want to use: " imageSKU
+
+# List the available versions for the selected image SKU
+echo "Listing all available versions for $imageSKU SKU from $imagePublisher publisher:"
+az vm image list \
+    --publisher $imagePublisher \
+    --offer $imageOffer \
+    --sku $imageSKU \
+    --location $location \
+    --all \
+    --query "[].version" \
+    --output table
+
+read -p "Enter the version you want to deploy: " version
+
+# Set the disk size to 128 GB
+osDiskSize=128
+
+# Set the VM size to Standard_DS2
+vmSize=Standard_DS2
+
+# Create a resource group
+az group create --name $resourceGroup --location eastus
+
+# Create a public IP address with static allocation method
+az network public-ip create \
+    --resource-group $resourceGroup \
+    --name ${vmName}-public-ip \
+    --location eastus \
+    --sku Standard \
+    --allocation-method Static
+
+# Get the public IP address ID
+publicIpId=$(az network public-ip show --resource-group $resourceGroup --name ${vmName}-public-ip --query "id" --output tsv)
+
+# Create a virtual machine with the selected SKU and VM size
+az vm create \
+    --resource-group $resourceGroup \
+    --name $vmName \
+    --location eastus \
+    --size $vmSize \
+    --image $imagePublisher:$imageOffer:$imageSKU:$version \
+    --admin-username $adminUser \
+    --admin-password $adminPassword \
+    --os-disk-size-gb $osDiskSize \
+    --public-ip-address $publicIpId
