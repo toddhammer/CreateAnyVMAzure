@@ -8,7 +8,16 @@ fi
 
 # Prompt the user for input
 read -p "Enter the resource group name: " resourceGroup
-read -p "Enter the location: " location
+
+location=""
+while [[ -z $location ]]; do
+    read -p "Enter the location: " location
+    if ! az account list-locations --query '[].name' --output table | grep -x $location ; then
+    echo "Invalid location. Please enter a valid location."
+    location=""
+    fi
+done
+
 read -p "Enter the virtual machine name: " vmName
 read -p "Enter the virtual machine admin username: " adminUser
 prompt="Enter the virtual machine admin password: "
