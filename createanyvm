@@ -24,38 +24,56 @@ done
 echo ""
 
 imagePublisher=""
-while [[ -z $imagePublisher ]]; do
-    read -p "Enter the image publisher: " imagePublisher
+while [[ -z $imagePublisher ]]; do #As long as the variable $imagePublisher is blank, keep doing the following
+    read -p "Enter the image publisher: " imagePublisher  #ask for the publisher. The user will need to know this. 
     echo "Listing all available offers from publisher $imagePublisher"
+	#List all the offers from that publisher
     if ! az vm image list-offers --location $location --publisher $imagePublisher --output table; then
+		#if that listing fails, go back and ask for a valid publisher
         echo "Invalid publisher. Please enter a valid image publisher."
         imagePublisher=""
     fi
 done
+#When successful, this will output a list of image offer to the screen
 
-read -p "Enter the image offer: " imageOffer
-echo "Listing all available SKUs for $imageOffer image offer from $imagePublisher publisher:"
+imageOffer="" 
+while [[ -z $imageOffer ]]; do #As long as the variable $imageOffer is blank, keep doing the following
+    read -p "Enter the image offer: " imageOffer  #user will see the list from the previous successful command
+    #verify the image offer is valid
+    if ! az vm image list-offers --location $location --publisher $imagePublisher --output table | grep $imageOffer; then
+            echo "Invalid image. Please enter a valid image."
+        imageOffer=""
+    fi
+done
 
-az vm image list-skus \
-    --offer $imageOffer \
-    --publisher $imagePublisher \
-    --location $location \
-    --output table
+imageSKU=""
+while [[ -z $imageSKU ]]; do #As long as the variable $imageSKU is blank, keep doing the following
+    az vm image list-skus --offer $imageOffer --publisher $imagePublisher --location $location --query "[].name" --output table #List available SKUs
+    read -p "Enter the image SKU: " imageSKU
+    if ! az vm image list-skus --offer $imageOffer --publisher $imagePublisher --location $location --query "[].name" --output table | grep -x $imageSKU; then #check if the SKU is valid
+        clear
+        echo ""
+        echo "Invalid sku. Please enter a valid image sku."
+        echo ""
+        sleep 2
+        imageSKU=""
+    fi
+done
 
-read -p "Enter the name of the SKU you want to use: " imageSKU
-
-# List the available versions for the selected image SKU
-echo "Listing all available versions for $imageSKU SKU from $imagePublisher publisher:"
-az vm image list \
-    --publisher $imagePublisher \
-    --offer $imageOffer \
-    --sku $imageSKU \
-    --location $location \
-    --all \
-    --query "[].version" \
-    --output table
-
-read -p "Enter the version you want to deploy: " version
+version=""
+while [[ -z $version ]]; do  #As long as the variable $version is blank, keep doing the following
+    az vm image list --publisher $imagePublisher --offer $imageOffer --sku $imageSKU --location $location --all --query "[].version" --output table #list all versions
+    echo ""
+    read -p "Enter the image offer: " version
+    if ! az vm image list --publisher $imagePublisher --offer $imageOffer --sku $imageSKU --location $location --all --query "[].version" --output table | grep -x $version; then
+        clear
+        echo ""
+        echo "Invalid version. Please enter a valid sku version."
+        echo ""
+        sleep 2
+        version=""
+    fi
+done
 
 # Set the disk size to 128 GB
 osDiskSize=128
@@ -77,6 +95,10 @@ az network public-ip create \
 # Get the public IP address ID
 publicIpId=$(az network public-ip show --resource-group $resourceGroup --name ${vmName}-public-ip --query "id" --output tsv)
 
+clear
+
+echo "Starting VM Creation" 
+echo ""
 # Create a virtual machine with the selected SKU and VM size
 az vm create \
     --resource-group $resourceGroup \
