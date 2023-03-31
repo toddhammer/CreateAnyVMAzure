@@ -22,9 +22,16 @@ do
     adminPassword+="$char"
 done
 echo ""
-read -p "Enter the image publisher: " imagePublisher
-echo "Listing all available offers from publisher $imagePublisher"
-az vm image list-offers --location $location --publisher $imagePublisher --output table
+
+imagePublisher=""
+while [[ -z $imagePublisher ]]; do
+    read -p "Enter the image publisher: " imagePublisher
+    echo "Listing all available offers from publisher $imagePublisher"
+    if ! az vm image list-offers --location $location --publisher $imagePublisher --output table; then
+        echo "Invalid publisher. Please enter a valid image publisher."
+        imagePublisher=""
+    fi
+done
 
 read -p "Enter the image offer: " imageOffer
 echo "Listing all available SKUs for $imageOffer image offer from $imagePublisher publisher:"
